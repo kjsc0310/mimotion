@@ -294,22 +294,29 @@ def post_fake_brand_data(step, app_token, userid, device_id=None):
 
     data = f'userid={userid}&last_sync_data_time=1597306380&device_type=0&last_deviceid={target_dev_id}&data_json={data_json}'
 
-    import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+    # --- 修复连接断开问题：增加重试和超时 ---
+    from requests.adapters import HTTPAdapter
+    from urllib3.util.retry import Retry
 
-session = requests.Session()
-# 配置自动重试：最多重试5次，每次间隔1秒
-retry_config = Retry(total=5, backoff_factor=1, allowed_methods=["POST"])
-session.mount("https://", HTTPAdapter(max_retries=retry_config))
-session.headers.update({"Connection": "keep-alive"})
-# 明确设置超时：连接8秒，读取25秒
-response = session.post(URL, data=data, headers=head, timeout=(8, 25))
-    if response.status_code != 200:
-        return False, "请求修改步数异常：%d" % response.status_code
-    response = response.json()
-    message = response["message"]
-    if message == "success":
-        return True, message
-    else:
-        return False, message
+    session = requests.Session()
+    retry_config = Retry(total=5, backoff_factor=1, allowed_methods=["POST"])
+    session.mount("https://", HTTPAdapter(max_retries=retry_config))
+    session.headers.update({"Connection": "keep-alive", "User-Agent": "MiFit6.14.0 (M2007J1SC; Android 12; Density/2.75)"})
+    
+    try:
+        # 注意：这里是小写的 url，不是大写的 URL
+        response = session.post(url, data=data, headers=head, timeout=(8, 30))
+        
+        if response.status_code != 200:
+            return False, "请求修改步数异常：%d" % response.status_code
+            
+        res_data = response.json()
+        message = res_data.get("message", "")
+        
+        if message == "success":
+            return True, message
+        else:
+            return False, message
+    except Exception as e:
+        return False, f"连接异常: {str(e)}"
+    # --- 修复结束 ---
