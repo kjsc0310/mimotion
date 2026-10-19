@@ -5,12 +5,15 @@ on:
     types:
       - completed
   workflow_dispatch:
+  # 每日北京时间12:17自动唤醒一次，打破漏跑死循环
+  schedule:
+    - cron: '17 4 * * *'
 
 jobs:
   repo-sync:
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch'
+    if: github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     steps:
       - uses: actions/checkout@v3
         with:
@@ -24,5 +27,5 @@ jobs:
           git config user.email github-actions@users.noreply.github.com
           git add .
           current=`TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M:%S'`
-          git commit -m "[${current}] random cron trigger by ${{ github.event_name }}"
+          git commit -m "[${current}] random cron trigger by ${{ github.event_name }}" || echo "无配置变更，跳过提交"
           git push origin master
